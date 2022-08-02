@@ -212,7 +212,7 @@ class Endpoint(web.RequestHandler):
         return None
 
     def get_argument(self, name: str, default=None, strip: bool = True, argument_type=None, required: bool = False,
-                     process=None, possible_values=None, validation=None, fields=None):
+                     process=None, possible_values=None, validation=None, fields=None, argument_format=None):
         try:
             json_data = escape.json_decode(self.request.body)
         except (json.JSONDecodeError, UnicodeDecodeError):
@@ -258,12 +258,16 @@ class Endpoint(web.RequestHandler):
                     raise ValidationException(field=name, message="Invalid string")
             elif argument_type == datetime.datetime:
                 try:
-                    result = datetime.datetime.strptime(result, '%Y-%m-%dT%H:%M:%SZ%z')
+                    if not argument_format:
+                        argument_format = '%Y-%m-%dT%H:%M:%SZ%z'
+                    result = datetime.datetime.strptime(result, argument_format)
                 except (TypeError, ValueError, AttributeError):
                     raise ValidationException(field=name, message="Invalid datetime value")
             elif argument_type == datetime.date:
                 try:
-                    result = datetime.datetime.strptime(result, '%Y-%m-%d').date()
+                    if not argument_format:
+                        argument_format = '%Y-%m-%d'
+                    result = datetime.datetime.strptime(result, argument_format).date()
                 except (TypeError, ValueError, AttributeError):
                     raise ValidationException(field=name, message="Invalid date value")
             elif argument_type == list and not isinstance(result, list):
@@ -336,7 +340,8 @@ class Endpoint(web.RequestHandler):
                                                      process=parameters.get('process'),
                                                      possible_values=parameters.get('possible_values'),
                                                      validation=parameters.get('validate'),
-                                                     fields=parameters.get('fields'))
+                                                     fields=parameters.get('fields'),
+                                                     argument_format=parameters.get('format'))
             except ValidationException as e:
                 exceptions.append(e)
         if exceptions:
