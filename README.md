@@ -25,7 +25,7 @@ CORS_ALLOWED_ORIGINS=*
 - Create a `run.py`:
 
 ```python
-from api import Service, Endpoint
+from simple_api_framework import Service, Endpoint
 
 
 class TestEndpoint(Endpoint):
@@ -33,6 +33,7 @@ class TestEndpoint(Endpoint):
     
     async def get(self):
         self.finish_with_ok_status()
+
 
 class MyService(Service):
     NAME = 'service'
