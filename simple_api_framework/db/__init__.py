@@ -319,7 +319,12 @@ class Model:
             raise DatabaseError("No database connection URL was provided")
 
         try:
-            pool = await aiopg.create_pool(postgres_uri, timeout=10)
+            timeout = int(os.getenv("DB_TIMEOUT", 30))
+        except (TypeError, ValueError):
+            timeout = 30
+
+        try:
+            pool = await aiopg.create_pool(postgres_uri, timeout=timeout)
             async with pool.acquire() as connection:
                 async with connection.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
                     try:
