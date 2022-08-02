@@ -17,7 +17,14 @@ setup(
     author_email="ihor.maioroff@gmail.com",
     license='MIT',
     packages=find_packages(),
-    install_requires=['tornado>=6.2', 'python-dotenv>=0.20.0', 'python-magic==0.4.27'],
+    install_requires=[
+        'tornado>=6.2',
+        'python-dotenv>=0.20.0',
+        'python-magic>=0.4.27',
+        'aioredis>=2.0.1',
+        'aiopg>=1.3.4',
+        'psycopg2-binary>=2.9.3'
+    ],
     keywords=['tornado', 'api', 'simple-api'],
     classifiers=[
         "Development Status :: 3 - Alpha",

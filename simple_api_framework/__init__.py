@@ -1,10 +1,12 @@
 import datetime
+import decimal
 import json
 import logging
 import os
 import re
 import uuid
-from typing import Awaitable, Optional
+from asyncio import Future
+from typing import Awaitable, Optional, Union
 
 import dotenv
 import magic
@@ -211,8 +213,127 @@ class Endpoint(web.RequestHandler):
             return host
         return None
 
+    @property
+    def current_page(self):
+        try:
+            page = int(self.get_argument('page', 1)) - 1
+        except ValueError:
+            page = 0
+        return page
+
+    @property
+    def pagination(self):
+        limit = os.getenv("DB_RESULTS_LIMIT", 20)
+        return {'limit': limit, 'offset': self.current_page * limit}
+
+    def finish_with_error(self, status_code, code=None, fields=None):
+        title = 'Unknown error'
+        if status_code == 500:
+            title = 'Internal Server Error'
+        elif status_code == 400:
+            title = 'Bad Request'
+        elif status_code == 401:
+            title = 'Unauthorized'
+        elif status_code == 403:
+            title = 'Forbidden'
+        elif status_code == 404:
+            title = 'Not Found'
+        elif status_code == 405:
+            title = 'Method Not Allowed'
+
+        message = {
+            'title': title,
+            'status': status_code,
+            'instance': self.request.path,
+        }
+
+        if code:
+            message['code'] = code
+
+        if fields:
+            message['fields'] = fields
+
+        self.set_header('Content-type', 'application/problem+json')
+        self.set_status(status_code)
+        return self.finish(message)
+
+    def finish_with_pagination(self, result, total_count=0, parameters=None, limit=None):
+        try:
+            page = int(self.get_argument('page', 1)) - 1
+        except ValueError:
+            page = -1
+
+        if limit is None:
+            limit = os.getenv("DB_RESULTS_LIMIT", 20)
+
+        count = 0
+        pages = 0
+        next_page = None
+        prev_page = None
+        if limit and len(result) and page >= 0 and total_count:
+            count = total_count
+            pages = int(count / limit)
+            if count % limit != 0:
+                pages += 1
+
+            request_url = self.request.path
+            if request_url[-1] != '/':
+                request_url += '/'
+
+            if (page + 1) < pages:
+                next_page = f"{request_url}?page={page + 2}"
+            if page > 0:
+                prev_page = f"{request_url}?page={page}"
+
+        if parameters:
+            for name, value in parameters.items():
+                if value:
+                    if next_page:
+                        next_page += f"&{name}={value}"
+                    if prev_page:
+                        prev_page += f"&{name}={value}"
+
+        for i, s in enumerate(result):
+            if isinstance(s, dict):
+                for key, value in s.items():
+                    if isinstance(value, datetime.date):
+                        s[key] = value.strftime("%Y-%m-%d")
+                    if isinstance(value, decimal.Decimal):
+                        s[key] = float(value)
+                continue
+            result[i] = s.frontend
+
+        return self.finish({
+            'status': 200,
+            'title': 'OK',
+            'count': count if count else len(result),
+            'size': limit if total_count else 0,
+            'pages': pages,
+            'next': next_page,
+            'previous': prev_page,
+            'results': result,
+        })
+
+    def finish_with_ok_status(self):
+        self.set_header('Content-type', 'application/json')
+        self.set_status(200)
+        return self.finish({'ok': True})
+
+    def finish(self, chunk: Optional[Union[str, bytes, dict]] = None) -> "Future[None]":
+        if hasattr(chunk, 'frontend'):
+            chunk = chunk.frontend
+        elif isinstance(chunk, list):
+            result = {'data': []}
+            for row in chunk:
+                if hasattr(row, 'frontend'):
+                    result['data'].append(row.frontend)
+                else:
+                    result['data'].append(row)
+            chunk = result
+        return super().finish(chunk)
+
     def get_argument(self, name: str, default=None, strip: bool = True, argument_type=None, required: bool = False,
-                     process=None, possible_values=None, validation=None, fields=None):
+                     process=None, possible_values=None, validation=None, fields=None, argument_format=None):
         try:
             json_data = escape.json_decode(self.request.body)
         except (json.JSONDecodeError, UnicodeDecodeError):
@@ -258,12 +379,16 @@ class Endpoint(web.RequestHandler):
                     raise ValidationException(field=name, message="Invalid string")
             elif argument_type == datetime.datetime:
                 try:
-                    result = datetime.datetime.strptime(result, '%Y-%m-%dT%H:%M:%SZ%z')
+                    if not argument_format:
+                        argument_format = '%Y-%m-%dT%H:%M:%SZ%z'
+                    result = datetime.datetime.strptime(result, argument_format)
                 except (TypeError, ValueError, AttributeError):
                     raise ValidationException(field=name, message="Invalid datetime value")
             elif argument_type == datetime.date:
                 try:
-                    result = datetime.datetime.strptime(result, '%Y-%m-%d').date()
+                    if not argument_format:
+                        argument_format = '%Y-%m-%d'
+                    result = datetime.datetime.strptime(result, argument_format).date()
                 except (TypeError, ValueError, AttributeError):
                     raise ValidationException(field=name, message="Invalid date value")
             elif argument_type == list and not isinstance(result, list):
@@ -336,7 +461,8 @@ class Endpoint(web.RequestHandler):
                                                      process=parameters.get('process'),
                                                      possible_values=parameters.get('possible_values'),
                                                      validation=parameters.get('validate'),
-                                                     fields=parameters.get('fields'))
+                                                     fields=parameters.get('fields'),
+                                                     argument_format=parameters.get('format'))
             except ValidationException as e:
                 exceptions.append(e)
         if exceptions:
@@ -370,42 +496,6 @@ class Endpoint(web.RequestHandler):
             self.set_status(204)
             return self.finish()
         return self.finish_with_error(404)
-
-    def finish_with_ok_status(self):
-        self.set_header('Content-type', 'application/json')
-        self.set_status(200)
-        return self.finish({'ok': True})
-
-    def finish_with_error(self, status_code, code=None, fields=None):
-        title = 'Unknown error'
-        if status_code == 500:
-            title = 'Internal Server Error'
-        elif status_code == 400:
-            title = 'Bad Request'
-        elif status_code == 401:
-            title = 'Unauthorized'
-        elif status_code == 403:
-            title = 'Forbidden'
-        elif status_code == 404:
-            title = 'Not Found'
-        elif status_code == 405:
-            title = 'Method Not Allowed'
-
-        message = {
-            'title': title,
-            'status': status_code,
-            'instance': self.request.path,
-        }
-
-        if code:
-            message['code'] = code
-
-        if fields:
-            message['fields'] = fields
-
-        self.set_header('Content-type', 'application/problem+json')
-        self.set_status(status_code)
-        return self.finish(message)
 
     async def get(self, *args, **kwargs):
         return self.finish_with_error(405)
