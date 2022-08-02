@@ -13,6 +13,8 @@ import magic
 from tornado import web, ioloop, escape
 from tornado.log import enable_pretty_logging
 
+from simple_api_framework.redis import Redis
+
 
 def setup_logging():
     logger = logging
@@ -142,6 +144,9 @@ class Service(web.Application):
 
         handlers.append((r"/.*", NotFoundHandler))
 
+        if os.getenv("REDIS_URL"):
+            self.redis = Redis(prefix=os.getenv("REDIS_PREFIX"), url=os.getenv("REDIS_URL"))
+
         super().__init__(handlers=handlers, debug=True if self.ENVIRONMENT in ['local', 'dev'] else False,
                          xsrf_cookies=False, logging=self.logging, **kwargs)
 
@@ -167,11 +172,13 @@ class Endpoint(web.RequestHandler):
     ENVIRONMENT = None
 
     logging = None
+    redis = None
 
     def initialize(self):
         self.logging = self.application.logging
         self.WORKING_DIRECTORY = self.application.WORKING_DIRECTORY
         self.ENVIRONMENT = self.application.ENVIRONMENT
+        self.redis = self.application.redis
 
     def set_default_headers(self) -> None:
         if os.getenv("CORS_ENABLED"):
