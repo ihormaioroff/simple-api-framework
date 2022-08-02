@@ -1,0 +1,16 @@
+__pycache__
+build
+dist
+venv
+.venv
+.virtualenv
+.idea
+simple_api_framework.egg-info
+
+*.pyc
+.DS_Store
+!.gitkeep
+node_modules
+package-lock.json
+.env
+deploy.sh
