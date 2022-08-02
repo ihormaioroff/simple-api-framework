@@ -7,6 +7,7 @@ import uuid
 from typing import Awaitable, Optional
 
 import dotenv
+import magic
 from tornado import web, ioloop, escape
 from tornado.log import enable_pretty_logging
 
@@ -340,6 +341,24 @@ class Endpoint(web.RequestHandler):
                 exceptions.append(e)
         if exceptions:
             raise ManyValidationExceptions(exceptions=exceptions)
+        return result
+
+    def get_file(self, attribute_name):
+        file_handler = self.request.files.get(attribute_name)
+        if not file_handler:
+            return None
+        file_handler = file_handler[0]
+
+        mime = magic.Magic(mime=True)
+        file_type = mime.from_buffer(file_handler.get('body'))
+
+        result = {
+            "file": file_handler.get('body'),
+            "type": file_type,
+            "name": file_handler.get('filename'),
+            "extension": os.path.splitext(file_handler.get('filename'))[1]
+        }
+
         return result
 
     def data_received(self, chunk: bytes) -> Optional[Awaitable[None]]:
