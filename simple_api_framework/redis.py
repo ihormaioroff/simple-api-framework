@@ -60,16 +60,27 @@ class Redis:
                     return
                 return await self.__put(key, data, tries)
 
-    async def set(self, key: str, dictionary: dict | list):
+    async def __remove(self, key):
+        redis = await self.__connection()
+        await redis.execute_command("del", f"{self.prefix}{key}")
+
+    async def set(self, key, dictionary, remove=False):
         try:
             data = self.__pre_process_new_data(dictionary)
-            for data_key, value in data.items():
-                data[data_key] = json.dumps(value)
+            if isinstance(data, dict):
+                for data_key, value in data.items():
+                    data[data_key] = json.dumps(value)
+            elif isinstance(data, list):
+                data = json.dumps(data)
+            else:
+                raise Exception("Redis values can be instances of dict or list")
+            if remove:
+                await self.__remove(key)
             await self.__put(key, data)
         except Exception as e:
             raise e
 
-    async def get(self, key: str, elements: str | list | None = None):
+    async def get(self, key, elements=None):
         try:
             redis = await self.__connection()
             if not elements:
