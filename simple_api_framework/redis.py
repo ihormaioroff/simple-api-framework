@@ -8,7 +8,9 @@ import aioredis
 
 class Redis:
     def __init__(self, **kwargs):
-        self.prefix = kwargs.get('prefix')
+        self.prefix = ''
+        if kwargs.get('prefix'):
+            self.prefix = f"{kwargs.get('prefix')}:"
         self.url = kwargs.get('url')
         self.max_insert_size = kwargs.get('max_insert_size', 50000)
         self.connect_timeout = kwargs.get('connect_timeout', 60)
@@ -51,7 +53,7 @@ class Redis:
 
         for item in self.__chunks(data):
             try:
-                await redis.hset(f"{self.prefix}:{key}", mapping=item)
+                await redis.hset(f"{self.prefix}{key}", mapping=item)
             except:
                 tries += 1
                 if tries > self.retries:
@@ -72,13 +74,13 @@ class Redis:
             redis = await self.__connection()
             if not elements:
                 results = {}
-                result = await redis.hgetall(f"{self.prefix}:{key}")
+                result = await redis.hgetall(f"{self.prefix}{key}")
                 if result:
                     for k, v in result.items():
                         results[k] = json.loads(v)
                 return results
             elif isinstance(elements, str):
-                result = await redis.hget(f"{self.prefix}:{key}", elements)
+                result = await redis.hget(f"{self.prefix}{key}", elements)
                 if result:
                     result = json.loads(result)
                 return result
@@ -86,7 +88,7 @@ class Redis:
                 results = {}
                 pipeline = redis.pipeline()
                 for e in elements:
-                    pipeline.hget(f"{self.prefix}:{key}", e)
+                    pipeline.hget(f"{self.prefix}{key}", e)
                 result = pipeline.execute()
                 if result:
                     for i, k in enumerate(elements):
