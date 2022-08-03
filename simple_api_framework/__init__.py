@@ -13,6 +13,7 @@ import magic
 from tornado import web, ioloop, escape
 from tornado.log import enable_pretty_logging
 
+from simple_api_framework.db.mongo import MongoDB
 from simple_api_framework.redis import Redis
 
 
@@ -146,6 +147,9 @@ class Service(web.Application):
 
         if os.getenv("REDIS_URL"):
             self.redis = Redis(prefix=os.getenv("REDIS_PREFIX"), url=os.getenv("REDIS_URL"))
+
+        if os.getenv("MONGODB_URL"):
+            self.mongo = MongoDB(url=os.getenv("MONGODB_URL"))
 
         super().__init__(handlers=handlers, debug=True if self.ENVIRONMENT in ['local', 'dev'] else False,
                          xsrf_cookies=False, logging=self.logging, **kwargs)
