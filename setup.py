@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.0.11'
+VERSION = '0.0.12'
 DESCRIPTION = 'Simple async API framework'
 LONG_DESCRIPTION = """
 This package contains simple async API framework, based on Tornado.

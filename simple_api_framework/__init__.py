@@ -177,12 +177,14 @@ class Endpoint(web.RequestHandler):
 
     logging = None
     redis = None
+    mongo = None
 
     def initialize(self):
         self.logging = self.application.logging
         self.WORKING_DIRECTORY = self.application.WORKING_DIRECTORY
         self.ENVIRONMENT = self.application.ENVIRONMENT
         self.redis = self.application.redis
+        self.mongo = self.application.mongo
 
     def set_default_headers(self) -> None:
         if os.getenv("CORS_ENABLED"):
