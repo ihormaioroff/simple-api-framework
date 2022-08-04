@@ -1,4 +1,4 @@
-import pymongo
+from motor.motor_tornado import MotorClient
 
 
 class MongoDB:
@@ -8,27 +8,27 @@ class MongoDB:
     def __connect(self):
         if not self.url:
             raise Exception("MongoDB: no connection url specified")
-        mongo = pymongo.MongoClient(self.url)
+        mongo = MotorClient(self.url)
         return mongo.get_default_database()
 
-    def insert(self, collection, data, remove=False):
+    async def insert(self, collection, data, remove=False):
         db = self.__connect()
         db_collection = db[collection]
-        db_collection.create_index(keys='_id', name=f'{collection}Index')
+        await db_collection.create_index(keys='_id', name=f'{collection}Index')
         if remove:
-            db_collection.delete_many({})
+            await db_collection.delete_many({})
         if isinstance(data, list):
-            db_collection.insert_many(data)
+            await db_collection.insert_many(data)
         else:
-            db_collection.insert_one(data)
+            await db_collection.insert_one(data)
 
-    def get(self, collection, many=True, parameters=None):
+    async def get(self, collection, many=True, parameters=None):
         db = self.__connect()
-        db_collection = db[collection]
         if not parameters:
             parameters = {}
         if many:
-            result = db_collection.find(parameters)
+            count = await db[collection].count_documents(parameters)
+            result = await db[collection].find(parameters).to_list(length=count)
         else:
-            result = db_collection.find_one(filter=parameters)
+            result = await db[collection].find_one(parameters)
         return result
