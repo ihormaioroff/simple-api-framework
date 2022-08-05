@@ -95,6 +95,9 @@ class Service(web.Application):
     NAME = None
     ENVIRONMENT = None
 
+    redis = None
+    mongo = None
+
     def __init__(self, **kwargs):
         dotenv.load_dotenv(override=True)
         self.logging = setup_logging()
@@ -155,10 +158,13 @@ class Service(web.Application):
                          xsrf_cookies=False, logging=self.logging, **kwargs)
 
         host = os.getenv('SERVICE_HOST', '0.0.0.0')
-        try:
-            port = int(os.getenv('SERVICE_PORT', 50000))
-        except (ValueError, TypeError):
-            port = 50000
+        if not kwargs.get('bind_port'):
+            try:
+                port = int(os.getenv('SERVICE_PORT', 50000))
+            except (ValueError, TypeError):
+                port = 50000
+        else:
+            port = kwargs.get('bind_port')
 
         self.logging.info(f"Starting {self.NAME.capitalize()} service on [{host}:{port}]")
         self.listen(address=host, port=port)
