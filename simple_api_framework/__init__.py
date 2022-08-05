@@ -422,6 +422,9 @@ class Endpoint(web.RequestHandler):
                 except (TypeError, ValueError, AttributeError):
                     raise ValidationException(field=name, message="Invalid UUID value")
 
+        if required and not result:
+            raise ValidationException(field=name, message="Field is required and should not be empty")
+
         if result is not None and argument_type is str and process:
             if 'capitalize_first' in process:
                 result = result.capitalize()

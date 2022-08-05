@@ -100,10 +100,13 @@ class Redis:
                 pipeline = redis.pipeline()
                 for e in elements:
                     pipeline.hget(f"{self.prefix}{key}", e)
-                result = pipeline.execute()
+                result = await pipeline.execute()
                 if result:
                     for i, k in enumerate(elements):
-                        results[k] = json.loads(result[i])
+                        if result[i]:
+                            results[k] = json.loads(result[i])
+                        else:
+                            results[k] = None
                 return results
         except Exception as e:
             raise e
