@@ -90,12 +90,7 @@ class Redis:
                     for k, v in result.items():
                         results[k] = json.loads(v)
                 return results
-            elif isinstance(elements, str):
-                result = await redis.hget(f"{self.prefix}{key}", elements)
-                if result:
-                    result = json.loads(result)
-                return result
-            else:
+            elif isinstance(elements, list) or isinstance(elements, tuple):
                 results = {}
                 pipeline = redis.pipeline()
                 for e in elements:
@@ -108,5 +103,10 @@ class Redis:
                         else:
                             results[k] = None
                 return results
+            else:
+                result = await redis.hget(f"{self.prefix}{key}", elements)
+                if result:
+                    result = json.loads(result)
+                return result
         except Exception as e:
             raise e
