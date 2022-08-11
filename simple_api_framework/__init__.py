@@ -491,6 +491,14 @@ class Endpoint(web.RequestHandler):
             raise ManyValidationExceptions(exceptions=exceptions)
         return result
 
+    @staticmethod
+    def update_errors(error_fields, key, error):
+        if key not in error_fields:
+            error_fields[key] = [error]
+        else:
+            error_fields[key].append(error)
+        return error_fields
+
     def get_file(self, attribute_name):
         file_handler = self.request.files.get(attribute_name)
         if not file_handler:

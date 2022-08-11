@@ -189,8 +189,8 @@ class Model:
                 return [f"{sql_name} ILIKE %({field_name})s"], [{field_name: value[5:].replace("'", '').strip()}]
             if 'value between' in value.lower():
                 values = value.split(' ')
-                return [f"%({field_name})s BETWEEN {table}.{values[3]} AND {table}.{values[4]}"], \
-                       [{field_name: values[0]}]
+                return [f"%({field_name})s BETWEEN {table.table_short_name()}.{values[3]} "
+                        f"AND {table.table_short_name()}.{values[4]}"], [{field_name: values[0]}]
             if 'between' in value.lower():
                 values = value.split(' ')
                 return [f"{sql_name} BETWEEN %({field_name}_1)s AND %({field_name}_2)s"], \
@@ -425,7 +425,10 @@ class Model:
         if where:
             query += f" WHERE {where}"
         if active:
-            query += f" AND {cls.table_short_name()}.is_active = TRUE"
+            if not where:
+                query += f" WHERE {cls.table_short_name()}.is_active = TRUE"
+            else:
+                query += f" AND {cls.table_short_name()}.is_active = TRUE"
 
         record = await cls.fetch(query, parameters)
         if not record:
