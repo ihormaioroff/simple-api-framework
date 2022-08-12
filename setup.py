@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.0.23'
+VERSION = '0.0.27'
 DESCRIPTION = 'Simple async API framework'
 LONG_DESCRIPTION = """
 This package contains simple async API framework, based on Tornado.
@@ -24,7 +24,10 @@ setup(
         'aioredis>=2.0.1',
         'aiopg>=1.3.4',
         'psycopg2-binary>=2.9.3',
-        'motor==3.0.0'
+        'motor>=3.0.0',
+        'ddtrace>=1.3.2',
+        'datadog>=0.44.0',
+        'sentry-sdk>=1.9.4'
     ],
     keywords=['tornado', 'api', 'simple-api'],
     classifiers=[

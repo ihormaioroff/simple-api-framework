@@ -7,9 +7,17 @@ import re
 import uuid
 from asyncio import Future
 from typing import Awaitable, Optional, Union
+import ddtrace
+
+from simple_api_framework.monitors import DataDogMonitor
+
+if os.getenv("DATADOG_ENABLED"):
+    ddtrace.patch(tornado=True)
 
 import dotenv
 import magic
+import sentry_sdk
+from sentry_sdk.integrations.tornado import TornadoIntegration
 from tornado import web, ioloop, escape
 from tornado.log import enable_pretty_logging
 
@@ -97,6 +105,7 @@ class Service(web.Application):
 
     redis = None
     mongo = None
+    monitor = None
 
     def __init__(self, **kwargs):
         dotenv.load_dotenv(override=True)
@@ -154,6 +163,26 @@ class Service(web.Application):
         if os.getenv("MONGODB_URL"):
             self.mongo = MongoDB(url=os.getenv("MONGODB_URL"))
 
+        if os.getenv('SENTRY_DSN_URL'):
+            sentry_sdk.init(
+                dsn=os.getenv('SENTRY_DSN_URL'),
+                environment=self.ENVIRONMENT,
+                integrations=[
+                    TornadoIntegration(),
+                ],
+                traces_sample_rate=1.0,
+                release=f"{self.SERVICE_NAME}@{os.getenv('GITLAB_COMMIT')}" if os.getenv('GITLAB_COMMIT') else None,
+            )
+
+        if os.getenv("DATADOG_ENABLED"):
+            if os.getenv("DATADOG_SERVICE_NAME") and os.getenv("DATADOG_API_KEY") and os.getenv("DATADOG_APP_KEY"):
+                self.monitor = DataDogMonitor(
+                    service=os.getenv("DATADOG_SERVICE_NAME"),
+                    env=self.ENVIRONMENT,
+                    api_key=os.getenv("DATADOG_API_KEY"),
+                    app_key=os.getenv("DATADOG_APP_KEY")
+                )
+
         super().__init__(handlers=handlers, debug=True if self.ENVIRONMENT in ['local', 'dev'] else False,
                          xsrf_cookies=False, logging=self.logging, **kwargs)
 
@@ -184,6 +213,7 @@ class Endpoint(web.RequestHandler):
     logging = None
     redis = None
     mongo = None
+    monitor = None
 
     def initialize(self):
         self.logging = self.application.logging
@@ -191,6 +221,7 @@ class Endpoint(web.RequestHandler):
         self.ENVIRONMENT = self.application.ENVIRONMENT
         self.redis = self.application.redis
         self.mongo = self.application.mongo
+        self.monitor = self.application.monitor
 
     def set_default_headers(self) -> None:
         if os.getenv("CORS_ENABLED"):
