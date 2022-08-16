@@ -5,7 +5,7 @@ class DataDogMonitor:
     def __init__(self, **kwargs):
         self.__service_name = kwargs.get('service')
         self.__env = kwargs.get('env')
-        datadog.initialize(api_key=kwargs.get('api_key'), app_key=kwargs.get('app_key'))
+        datadog.initialize(api_key=kwargs.get('api_key'), app_key=kwargs.get('app_key'), host_name=kwargs.get('host'))
 
     def duration(self, name, duration):
         datadog.statsd.histogram(

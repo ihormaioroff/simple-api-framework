@@ -139,7 +139,7 @@ class Service(web.Application):
             if '{uuid}' in uri:
                 uri = uri.format(uuid=uuid_format)
             if not url.get('without_prefix'):
-                handlers.append(web.url(re.compile(f'{url_prefix}/{uri}/$'), url.get("handler")))
+                handlers.append(web.url(re.compile(f'{url_prefix}/{uri}(/.*)?$'), url.get("handler")))
             else:
                 handlers.append(web.url(re.compile(f'{uri}$'), url.get('handler')))
 
@@ -177,6 +177,7 @@ class Service(web.Application):
         if os.getenv("DATADOG_ENABLED"):
             if os.getenv("DATADOG_SERVICE_NAME") and os.getenv("DATADOG_API_KEY") and os.getenv("DATADOG_APP_KEY"):
                 self.monitor = DataDogMonitor(
+                    host=os.getenv("DATADOG_HOST", '127.0.0.1'),
                     service=os.getenv("DATADOG_SERVICE_NAME"),
                     env=self.ENVIRONMENT,
                     api_key=os.getenv("DATADOG_API_KEY"),
@@ -604,5 +605,5 @@ class Endpoint(web.RequestHandler):
 class HealthCheckEndpoint(Endpoint):
     methods = ['GET']
 
-    async def get(self):
+    async def get(self, *args, **kwargs):
         return self.finish_with_ok_status()

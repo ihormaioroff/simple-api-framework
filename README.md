@@ -40,7 +40,7 @@ from simple_api_framework import Service, Endpoint
 class TestEndpoint(Endpoint):
     methods = ['GET']
     
-    async def get(self):
+    async def get(self, *args, **kwargs):
         self.finish_with_ok_status()
 
 
